@@ -14,7 +14,6 @@
 ## Part 2 - Read Life Expectancy figures sourced from NRS (& create HSCP partnership dummy data)
 ## Part 3 - Format & prepare file for ScotPHO Profiles Shiny tool
 
-
 ###############################################.
 ## Packages/Filepaths ----
 ###############################################.
@@ -54,7 +53,8 @@ le0_iz_profiles <- le0_data %>%
   subset(pop>=5000 & deaths>=40) %>%
   mutate(def_period=time_period,
          year=as.numeric(substr(time_period,1,4))+2, # year should be mid-point - this forumla assumes 5 year time period
-         trend_axis=paste0(year-2,"-",year+2)) %>% #trend axis displays year span e.g. 2011-2015 
+         trend_axis=paste0(as.character(year)," Midpoint")) %>%
+         #trend_axis=paste0(year-2,"-",year+2)) %>% #trend axis displays year span e.g. 2011-2015 
   select (geography,sex_grp, year, LEx,lci,uci,def_period,trend_axis) %>%
   rename(code=geography)
 
@@ -74,7 +74,8 @@ NRS_data <- read_csv(paste0(source_network,"2018 NRS LE data with CI.csv"))
 NRS_data <- NRS_data %>%
   mutate(def_period=paste0(time_period," (3 year aggregate)"),
          year=as.numeric(substr(time_period,1,4))+1,# year should be mid-point of time series - this forumla assumes 3 year time period
-         trend_axis=paste0(year-1,"-",year+1), #trend axis displays year span e.g. 2001-2003 
+         trend_axis=paste0(as.character(year)," Midpoint"),
+         #trend_axis=paste0(year-1,"-",year+1), #trend axis displays year span e.g. 2001-2003 
          sex=as.character(sex_grp)) %>%
   select(-sex_grp, -geography, -time_period) %>%
   rename(sex_grp=sex)
