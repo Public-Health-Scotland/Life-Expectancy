@@ -1,5 +1,5 @@
 # LE for small areas (e.h. Intermediate Zone or HSCP locality)
-# 20/11/2018
+# 03/10/2019
 
 # Program generates life expectancy at birth estimates for small areas such as 2011 intermediate zone
 # geogrpahies
@@ -57,14 +57,15 @@ data_deaths_raw <- tbl_df(dbGetQuery(channel, statement=
                                        "SELECT year_of_registration year, age, sex sex_grp, country_of_residence cor, POSTCODE pc7,DATE_OF_BIRTH dob,DATE_OF_DEATH dod,
                                      CASE WHEN country_of_residence='XS'THEN 'XS'ELSE 'nonres' END as nonres 
                                      FROM ANALYSIS.GRO_DEATHS_C 
-                                     WHERE year_of_registration between '2011' AND '2017'")) %>%
+                                     WHERE year_of_registration between '2001' AND '2018'")) %>%
   setNames(tolower(names(.)))  #variables to lower case
 
 
 # Check of numbers of non-residents - can compare to NRS published estimates.
-table(data_deaths_raw$nonres)
+table(data_deaths_raw$nonres, data_deaths_raw$year)
 
 # Format and add age bands (<1 years, 1-4 years, then 5 year age bands)
+# Recode unknown to male
 data_deaths_raw <- data_deaths_raw %>%
   mutate(age_grp = case_when(
     age == 0 ~ 1,  age >= 1 & age <=4 ~ 2,  age >= 5 & age <=9 ~ 3,  age >= 10 & age <=14 ~ 4,
@@ -75,10 +76,7 @@ data_deaths_raw <- data_deaths_raw %>%
   mutate(sex_grp=recode(data_deaths_raw$sex_grp,"9"="1"))
 
 # Read in geographic reference file.
- # postcode_lookup2 <- read_csv('/conf/linkage/output/lookups/geography/Scottish_Postcode_Directory_2017_2.csv') %>% 
- #   setNames(tolower(names(.)))  #variables to lower case
-
-postcode_lookup <- read_rds('/conf/linkage/output/lookups/Unicode/Geography/Scottish Postcode Directory/Scottish_Postcode_Directory_2019_1.rds') %>%
+postcode_lookup <- read_rds('/conf/linkage/output/lookups/Unicode/Geography/Scottish Postcode Directory/Scottish_Postcode_Directory_2019_2.rds') %>%
   setNames(tolower(names(.)))  #variables to lower case
 
 # Join geogrpaphy lookup and deaths data.
@@ -87,6 +85,9 @@ data_deaths_raw <- left_join(data_deaths_raw, postcode_lookup, "pc7") %>%
 
 # Non-residents will not have an IZ - recode missing intzones to "xx"
 data_deaths_raw$intzone2011[is.na(data_deaths_raw$intzone2011)] <- "xx"
+
+# Frequencies of deaths where no IZ matched by year - check that earlier years don't have excessive non-matched deaths
+table(filter(data_deaths_raw, intzone2011 == 'xx')$year)
 
 #aggregate deaths by year, age, sex for scottish residents only 
 data_deaths <- data_deaths_raw %>%
@@ -104,12 +105,22 @@ rm(data_deaths_raw) #optional cleaning
 ## Part 2 - Read in Scotland Populations from ISD lookup ----
 ###############################################.
 
+# Read in small area population lookup based on 2011 datazones for years prior to 2011.
+# NRS back calculated these populations
+data_pop1 <- readRDS(paste0(cl_out_pop,"IntZone2011_pop_est_2001_2010.rds"))%>%
+  setNames(tolower(names(.))) %>%  #variables to lower case
+  subset(year>=2001) %>%
+  mutate(sex_grp = case_when(sex=="M"~"1",sex=="F"~"2",TRUE~"other")) %>%
+  select(-c(total_pop,sex, intzone2011name))
+
 # Read in small area population lookup, select required data and recode to permit matching.
-data_pop <- readRDS(paste0(cl_out_pop,"IntZone2011_pop_est_2011_2017.rds")) %>%
+data_pop2 <- readRDS(paste0(cl_out_pop,"IntZone2011_pop_est_2011_2018.rds")) %>%
   setNames(tolower(names(.))) %>%  #variables to lower case
   subset(year>=2011) %>%
   mutate(sex_grp = case_when(sex=="M"~"1",sex=="F"~"2",TRUE~"other")) %>%
-  select(-c(total_pop,sex))
+  select(-c(total_pop,sex, intzone2011name))
+
+data_pop <- bind_rows(data_pop1,data_pop2)
 
 # Reshape data to long format
 data_pop <- data_pop %>% melt(id.vars = c("year", "sex_grp", "intzone2011"),
@@ -131,8 +142,12 @@ data_pop <- data_pop %>%
 
 saveRDS(data_pop, file=paste0(temp_network,'data_pop.rds'))
 
-rm(postcode_lookup) #optional cleaning 
+#check annual population totals look OK
+data_check_pop <- data_pop %>%
+  group_by (year) %>%
+  summarise(tot_pop=sum(pop))
 
+rm(postcode_lookup, data_check_pop, data_pop1, data_pop2) #optional cleaning
 
 
 ##########################################################################################.
@@ -196,8 +211,8 @@ saveRDS(data_deaths_all, file=paste0(temp_network,'data_deaths.rds'))
 # time_agg      - number of years of data for aggegrated time periods (1 = single year, 2,3,4,5 etc)
 
 
-LE_85_function(run_name="2011to2017 IZ&Locality LE(85+)_20190522",fp_deaths="data_deaths", fp_pop="data_pop",
-             fp_output="4_Intermediate Zone LE (annual)",   yearstart=2011, yearend=2017, time_agg=5)
+LE_85_function(run_name="2001to2018 IZ&Locality LE(85+)_20191003",fp_deaths="data_deaths", fp_pop="data_pop",
+             fp_output="4_Intermediate Zone LE (annual)",   yearstart=2001, yearend=2018, time_agg=5)
 
 
 # Function generates 3 output RDS files than can be used for checking or analysis

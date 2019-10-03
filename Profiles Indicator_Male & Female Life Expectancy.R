@@ -26,12 +26,12 @@ server_desktop <- "server" #change depending on what version of RStudio are you 
 if (server_desktop == "server") {
   source_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/Source Data/"
   output_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/Output Data/"
-  shiny_network <- "/PHI_conf/ScotPHO/Profiles/Data/Shiny Data/"
+  shiny_network <- "/PHI_conf/ScotPHO/Profiles/Data/Data to be checked/"
   
 } else if (server_desktop == "desktop") {
   source_network <- "//stats/ScotPHO/Life Expectancy/Data/Source Data/"
   output_network <- "//stats/ScotPHO/Life Expectancy/Data/Output Data/"
-  shiny_network <- "//stats/ScotPHO/Profiles/Data/Shiny Data/"
+  shiny_network <- "//stats/ScotPHO/Profiles/Data/Data to be checked/"
 }
 
 
@@ -40,7 +40,7 @@ if (server_desktop == "server") {
 ##########################################################################################.
 
 # Set run name - this will dictate which iteration of IZ level life expectancy source data to use
-run_name="2011to2017 IZ&Locality LE(85+)_20190522"
+run_name="2001to2018 IZ&Locality LE(85+)_20191003"
 
 le0_data<- readRDS(paste0(output_network,"4_Intermediate Zone LE (annual)/",run_name,"_life expectancy at birth.rds"))
 
@@ -69,7 +69,8 @@ rm(le0_data)
 ##########################################################################################. 
 
 
-NRS_data <- read_csv(paste0(source_network,"2018 NRS LE data with CI.csv"))
+NRS_data <- read_csv(paste0(source_network,"NRS LE data with CI 2001 to 2017.csv")) %>%
+  arrange(code, time_period, sex_grp)
 
 NRS_data <- NRS_data %>%
   mutate(def_period=paste0(time_period," (3 year aggregate)"),
