@@ -25,11 +25,11 @@ library(dplyr)    #data manipulations
 library(RcppRoll) #for rolling sums
 
 
-if (server_desktop == "server") {
+if (sessionInfo()$platform %in% c("x86_64-redhat-linux-gnu (64-bit)", "x86_64-pc-linux-gnu (64-bit)")) {  
   temp_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/temporary/"
   output_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/Output Data/"
   
-} else if (server_desktop == "desktop") {
+} else  {
   temp_network <- "//stats/ScotPHO/Life Expectancy/Data/temporary/"
   output_network <- "//stats/ScotPHO/Life Expectancy/Data/Output Data/"
 }

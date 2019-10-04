@@ -21,14 +21,13 @@
 library(dplyr)    #data manipulations 
 library(readr)    #reading in file
 
-server_desktop <- "server" #change depending on what version of RStudio are you using
-
-if (server_desktop == "server") {
+#change depending on what version of RStudio are you using
+if (sessionInfo()$platform %in% c("x86_64-redhat-linux-gnu (64-bit)", "x86_64-pc-linux-gnu (64-bit)")) {
   source_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/Source Data/"
   output_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/Output Data/"
   shiny_network <- "/PHI_conf/ScotPHO/Profiles/Data/Data to be checked/"
   
-} else if (server_desktop == "desktop") {
+} else {
   source_network <- "//stats/ScotPHO/Life Expectancy/Data/Source Data/"
   output_network <- "//stats/ScotPHO/Life Expectancy/Data/Output Data/"
   shiny_network <- "//stats/ScotPHO/Profiles/Data/Data to be checked/"
