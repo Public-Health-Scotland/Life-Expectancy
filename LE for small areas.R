@@ -21,26 +21,18 @@
 ###############################################.
 
 library(odbc)     #connections to SMRA
-library(dplyr)    #data manipulations 
 library(foreign)  #read spss files in lookups folder
 library(readr)    #reading in file
 library(reshape2) #for melt - reshaping of data
 
-server_desktop <- "server" #change depending on what version of RStudio are you using
-
-if (server_desktop == "server") {
+#change depending on what version of RStudio are you using
+if (sessionInfo()$platform %in% c("x86_64-redhat-linux-gnu (64-bit)", "x86_64-pc-linux-gnu (64-bit)")) {  
   cl_out_pop <- "/conf/linkage/output/lookups/Unicode/Populations/Estimates/"
-  temp_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/temporary/"
-  output_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/Output Data/"
-  
-} else if (server_desktop == "desktop") {
+} else {
   cl_out_pop <- "//stats/linkage/output/lookups/Unicode/Populations/Estimates/"
-  temp_network <- "//stats/ScotPHO/Life Expectancy/Data/temporary/"
-  output_network <- "//stats/ScotPHO/Life Expectancy/Data/Output Data/"
 }
 
-source("./Function_Life Expectancy (85+).R") #Life expectancy function where max age band is 85+ years
-
+source("Function_Life Expectancy (85+).R") #Life expectancy function where max age band is 85+ years
 
 ###########################################################.
 ## Part 1 - Extract deaths data from NRS deaths view ----
@@ -48,16 +40,17 @@ source("./Function_Life Expectancy (85+).R") #Life expectancy function where max
 
 # SMRA login information
 channel <- suppressWarnings(dbConnect(odbc(),  dsn="SMRA",
-                                      uid=.rs.askForPassword("SMRA Username:"), pwd=.rs.askForPassword("SMRA Password:")))
+                                      uid=.rs.askForPassword("SMRA Username:"), 
+                                      pwd=.rs.askForPassword("SMRA Password:")))
 
 # Select data from deaths file - adjust years to select min and max year of registration needed
 # Deaths for scottish residents are coded as (XS) non-residents codes as (non-res)
 
 data_deaths_raw <- tbl_df(dbGetQuery(channel, statement=
-                                       "SELECT year_of_registration year, age, sex sex_grp, country_of_residence cor, POSTCODE pc7,DATE_OF_BIRTH dob,DATE_OF_DEATH dod,
-                                     CASE WHEN country_of_residence='XS'THEN 'XS'ELSE 'nonres' END as nonres 
-                                     FROM ANALYSIS.GRO_DEATHS_C 
-                                     WHERE year_of_registration between '2001' AND '2018'")) %>%
+ "SELECT year_of_registration year, age, sex sex_grp, POSTCODE pc7,
+        CASE WHEN country_of_residence='XS'THEN 'XS'ELSE 'nonres' END as nonres 
+  FROM ANALYSIS.GRO_DEATHS_C 
+  WHERE year_of_registration between 2001 AND 2018")) %>%
   setNames(tolower(names(.)))  #variables to lower case
 
 
@@ -83,15 +76,12 @@ postcode_lookup <- read_rds('/conf/linkage/output/lookups/Unicode/Geography/Scot
 data_deaths_raw <- left_join(data_deaths_raw, postcode_lookup, "pc7") %>% 
   select(year, age_grp, sex_grp, intzone2011) 
 
-# Non-residents will not have an IZ - recode missing intzones to "xx"
-data_deaths_raw$intzone2011[is.na(data_deaths_raw$intzone2011)] <- "xx"
-
 # Frequencies of deaths where no IZ matched by year - check that earlier years don't have excessive non-matched deaths
-table(filter(data_deaths_raw, intzone2011 == 'xx')$year)
+table(filter(data_deaths_raw, is.na(intzone2011))$year)
 
 #aggregate deaths by year, age, sex for scottish residents only 
 data_deaths <- data_deaths_raw %>%
-  subset(intzone2011 != "xx") %>%  #exclude non scottish residents
+  subset(!(is.na(intzone2011))) %>%  #exclude non scottish residents
   group_by(year,age_grp,sex_grp,intzone2011) %>%
   summarise(deaths=n()) %>%
   ungroup() %>%
@@ -162,7 +152,7 @@ IZtoPartnership_lookup <- readRDS("/PHI_conf/ScotPHO/Profiles/Data/Lookups/Geogr
   rename(geography=intzone2011)
 
 # Join IZ deaths data to Partnership geogrpaphy lookup.
-data_deaths_hscp <- left_join(data_deaths, IZtoPartnership_lookup, "geography") 
+data_deaths_hscp <- left_join(data_deaths, IZtoPartnership_lookup, by ="geography") 
 
 # LE only to be calculated for localities but not Partnerships (partnerships are effectively council area - CA life expectancy is domain of NRS and calculated using 3 year time period)
 data_deaths_locality <- data_deaths_hscp %>%
@@ -181,7 +171,6 @@ data_pop_locality <- data_pop_hscp %>%
   rename(geography=hscp_locality) %>%
   ungroup() 
 
-
 # Add locality geographies to IZ deaths & population files & save files ready for running function
 
 data_pop_all <- bind_rows(data_pop, data_pop_locality)
@@ -190,8 +179,6 @@ saveRDS(data_pop_all, file=paste0(temp_network,'data_pop.rds'))
 data_deaths_all <- bind_rows(data_deaths, data_deaths_locality)
 saveRDS(data_deaths_all, file=paste0(temp_network,'data_deaths.rds'))
 
-
-
 ##########################################################################################.
 ## Part 4 - Generating Life Expectancy Estimates ----
 ##########################################################################################.
@@ -199,7 +186,7 @@ saveRDS(data_deaths_all, file=paste0(temp_network,'data_deaths.rds'))
 # Running part 1 & 2 of this program generate a population & death file that are picked up & joined in the macro
 # Call life expectancy function 
 
-# Tokens:
+# Parameters:
 
 # run_name - This token acts as an identifier for the output files generate,
 #              if it is not changed it will over-write files generated in a previous run 
@@ -211,19 +198,16 @@ saveRDS(data_deaths_all, file=paste0(temp_network,'data_deaths.rds'))
 # time_agg      - number of years of data for aggegrated time periods (1 = single year, 2,3,4,5 etc)
 
 
-LE_85_function(run_name="2001to2018 IZ&Locality LE(85+)_20191003",fp_deaths="data_deaths", fp_pop="data_pop",
-             fp_output="4_Intermediate Zone LE (annual)",   yearstart=2001, yearend=2018, time_agg=5)
-
+LE_85_function(run_name="2001to2018 IZ&Locality LE(85+)_20191003",fp_deaths="data_deaths", 
+               fp_pop="data_pop", fp_output="4_Intermediate Zone LE (annual)",   
+               yearstart=2001, yearend=2018, time_agg=5)
 
 # Function generates 3 output RDS files than can be used for checking or analysis
 # Select & run the "run_name" & "fp_output" tokens above & the script below will 
 # read in files you created with the function above.
-
-
-raw_data<- readRDS(paste0(temp_network,run_name,"-le_raw.rds")) # raw data before le calculations
+raw_data <- readRDS(paste0(temp_network,run_name,"-le_raw.rds")) # raw data before le calculations
 lifetable_data <- readRDS(paste0(output_network,fp_output,"/",run_name,"_full life table.rds")) #full life table
-le0_data<- readRDS(paste0(output_network,fp_output,"/",run_name,"_life expectancy at birth.rds")) #life expectancy at birth
-
+le0_data <- readRDS(paste0(output_network,fp_output,"/",run_name,"_life expectancy at birth.rds")) #life expectancy at birth
 
 # Optional files can be saved as csv if required - not generally required
 write_csv(le0_data, path = paste0(output_network,fp_output,"/",run_name,"_life expectancy at birth.csv"),
