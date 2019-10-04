@@ -75,7 +75,6 @@ NRS_data <- NRS_data %>%
   mutate(def_period=paste0(time_period," (3 year aggregate)"),
          year=as.numeric(substr(time_period,1,4))+1,# year should be mid-point of time series - this forumla assumes 3 year time period
          trend_axis=paste0(as.character(year)," Midpoint"),
-         #trend_axis=paste0(year-1,"-",year+1), #trend axis displays year span e.g. 2001-2003 
          sex=as.character(sex_grp)) %>%
   select(-sex_grp, -geography, -time_period) %>%
   rename(sex_grp=sex)
@@ -95,7 +94,7 @@ lookup_ca <- readRDS("/PHI_conf/ScotPHO/Profiles/Data/Lookups/Geography/CAdictio
 #create lookup that matches HSCP code to CA code (note stirling and clacks have no match and will be dropped)
 hscp_ca <- merge(lookup_ca,lookup_hscp, by="areaname", all.x = TRUE) %>%
  rename(code=code.x) %>%
-  select(-c(areaname))
+  select(-areaname)
 
 NRS_ca_data <- NRS_data %>%  #select only council data from NRS file
   subset(substr(NRS_data$code, 1, 3) =="S12") 
@@ -103,7 +102,7 @@ NRS_ca_data <- NRS_data %>%  #select only council data from NRS file
 NRS_ca_data <- left_join(NRS_ca_data, hscp_ca, by="code") # match on 
 
 NRS_hscp_data <- NRS_ca_data %>%
-  select(-c(code)) %>%
+  select(-code) %>%
   rename(code=code.y) %>%
   filter(!is.na(code))
 
@@ -117,23 +116,18 @@ all_le_data<- bind_rows(le0_iz_profiles, NRS_data) %>%
   mutate(ind_id= case_when(sex_grp=="1" ~ "20101", #male indicator number
                            sex_grp=="2" ~ "20102", #female indicator number
                            TRUE ~"x")) %>%
-  arrange(ind_id, year, code) 
-
-## Male life expectancy file
-profile_data_male_LE <- all_le_data %>%
-  subset(ind_id=="20101") %>%
+  arrange(ind_id, year, code) %>% 
   mutate(numerator="") %>% #insert column where numerator would ordinarily be - there is no numerator for LE
   select(code, ind_id, year, numerator, rate=LEx,lowci=lci,upci=uci, def_period, trend_axis)
+
+## Male life expectancy file
+profile_data_male_LE <- all_le_data %>% subset(ind_id=="20101") 
 
 write_csv(profile_data_male_LE, path = paste0(shiny_network, "life_expectancy_male_shiny.csv"))
 write_rds(profile_data_male_LE, path = paste0(shiny_network, "life_expectancy_male_shiny.rds"))
 
-
 ## Female life expectancy file
-profile_data_female_LE <- all_le_data %>%
-  subset(ind_id=="20102") %>%
-  mutate(numerator="") %>% #insert column where numerator would ordinarily be - there is no numerator for LE
-  select(code, ind_id, year, numerator, rate=LEx,lowci=lci,upci=uci, def_period, trend_axis)
+profile_data_female_LE <- all_le_data %>% subset(ind_id=="20102") 
 
 write_csv(profile_data_female_LE, path = paste0(shiny_network, "life_expectancy_female_shiny.csv"))
 write_rds(profile_data_female_LE, path = paste0(shiny_network, "life_expectancy_female_shiny.rds"))
