@@ -43,13 +43,13 @@ run_name="2001to2018 IZ&Locality LE(85+)_20191003"
 
 le0_data<- readRDS(paste0(output_network,"4_Intermediate Zone LE (annual)/",run_name,"_life expectancy at birth.rds"))
 
-
 #LE estimates only provided where population & death counts considered robust
 #remove any estimates where geography has population less than 5000 or less than 40 deaths over 5 year period
 #add time period labels
 
 le0_iz_profiles <- le0_data %>%
-  subset(pop>=5000 & deaths>=40) %>%
+  subset(pop>=5000) %>% #filter out any cases where pop <5000
+  subset(deaths>=40) %>% #filter out cases where total deaths less than 40
   mutate(def_period=time_period,
          year=as.numeric(substr(time_period,1,4))+2, # year should be mid-point - this forumla assumes 5 year time period
          trend_axis=paste0(as.character(year)," Midpoint")) %>%
@@ -66,7 +66,6 @@ rm(le0_data)
 ## Note these estimates are the official national statistics and are 3 year rolling averages.
 ## Figures orginally supplied by population & migration team at NRS but in future may be available online.
 ##########################################################################################. 
-
 
 NRS_data <- read_csv(paste0(source_network,"NRS LE data with CI 2001 to 2017.csv")) %>%
   arrange(code, time_period, sex_grp)
