@@ -18,11 +18,11 @@
 ###############################################.
 ## Packages/Filepaths ----
 ###############################################.
-
+library(dplyr)
 library(odbc)     #connections to SMRA
 library(foreign)  #read spss files in lookups folder
 library(readr)    #reading in file
-library(reshape2) #for melt - reshaping of data
+library(tidyr) #for melt - reshaping of data
 
 #change depending on what version of RStudio are you using
 if (sessionInfo()$platform %in% c("x86_64-redhat-linux-gnu (64-bit)", "x86_64-pc-linux-gnu (64-bit)")) {  
@@ -96,10 +96,10 @@ data_deaths_iz <- data_deaths_raw %>%
   rename(geography=intzone2011)
 
 #aggregate HSCP locality level deaths by year, age, sex for scottish residents only 
-DZtoPartnership_lookup <- readRDS("/PHI_conf/ScotPHO/Profiles/Data/Lookups/Geography/DataZone11_HSCLocality_Lookup.rds")
+dz_locality_lookup <- readRDS("/PHI_conf/ScotPHO/Profiles/Data/Lookups/Geography/DataZone11_HSCLocality_Lookup.rds")
 
 # Join deaths data to DZ to Partnership geogrpaphy lookup.
-data_deaths_locality <- left_join(data_deaths_raw, DZtoPartnership_lookup, by ="datazone2011") 
+data_deaths_locality <- left_join(data_deaths_raw, dz_locality_lookup, by ="datazone2011") 
 
 data_deaths_locality <- data_deaths_locality %>%
   subset(!(is.na(hscp_locality))) %>%  #exclude non scottish residents
@@ -117,7 +117,7 @@ xtabs(deaths~year+(substr(geography,1,3)), data_deaths_all)
 # Save deaths file
 saveRDS(data_deaths_all, file=paste0(temp_network,'data_deaths.rds'))
 
-rm(data_deaths_raw, data_deaths_iz,data_deaths_locality,DZtoPartnership_lookup) #optional cleaning 
+rm(data_deaths_raw, data_deaths_iz,data_deaths_locality,dz_locality_lookup) #optional cleaning 
 
 ###############################################.
 ## Part 2 - Read in Scotland Populations from ISD lookup ----
@@ -142,9 +142,7 @@ data_pop <- bind_rows(data_pop1,data_pop2)
 rm(data_pop1,data_pop2)
 
 # Reshape data to long format
-data_pop <- data_pop %>%
-  melt(id.vars = c("year", "sex_grp", "datazone2011"),
-                            variable.name = "age", value.name = "pop")
+data_pop <- data_pop %>% gather(age, pop, -c(year, sex_grp, intzone2011))
 
 #Converting pop & age to numeric
 data_pop$pop <- as.numeric(data_pop$pop)
@@ -157,11 +155,11 @@ data_pop <- data_pop %>%
   summarise(pop=sum(pop)) %>%
   ungroup()
 
-# Read in dz to 
-DZtoGeo_lookup <- readRDS("/PHI_conf/ScotPHO/Profiles/Data/Lookups/Geography/DataZone11_All_Geographies_Lookup.rds")
+# Read in dz to localities and izs lookup
+dz_geo_lookup <- readRDS("/PHI_conf/ScotPHO/Profiles/Data/Lookups/Geography/DataZone11_All_Geographies_Lookup.rds")
 
 # Join IZ pops data to Partnership geogrpaphy lookup.
-data_pop<- left_join(data_pop, DZtoGeo_lookup, "datazone2011") 
+data_pop <- left_join(data_pop, dz_geo_lookup, "datazone2011") 
 
 # Aggregate populations for hscp localities
 data_pop_locality <- data_pop %>%
@@ -186,7 +184,7 @@ xtabs(pop~year+(substr(geography,1,3)), data_pop_all)
 # Save population file
 saveRDS(data_pop_all, file=paste0(temp_network,'data_pop.rds'))
 
-rm(postcode_lookup, data_pop, data_pop_iz, data_pop_locality, DZtoGeo_lookup) #optional cleaning
+rm(postcode_lookup, data_pop, data_pop_iz, data_pop_locality, dz_geo_lookup) #optional cleaning
 
 
 ##########################################################################################.
