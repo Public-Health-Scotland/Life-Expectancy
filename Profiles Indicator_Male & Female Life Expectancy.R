@@ -46,14 +46,11 @@ le0_data<- readRDS(paste0(output_network,"4_Intermediate Zone LE (annual)/",run_
 #LE estimates only provided where population & death counts considered robust
 #remove any estimates where geography has population less than 5000 or less than 40 deaths over 5 year period
 #add time period labels
-
 le0_iz_profiles <- le0_data %>%
-  subset(pop>=5000) %>% #filter out any cases where pop <5000
-  subset(deaths>=40) %>% #filter out cases where total deaths less than 40
+  subset(pop>=5000 & deaths>=40) %>% #Including only cases where pop >=5000 and total deaths >= 40
   mutate(def_period=time_period,
          year=as.numeric(substr(time_period,1,4))+2, # year should be mid-point - this forumla assumes 5 year time period
          trend_axis=paste0(as.character(year)," Midpoint")) %>%
-         #trend_axis=paste0(year-2,"-",year+2)) %>% #trend axis displays year span e.g. 2011-2015 
   select (geography,sex_grp, year, LEx,lci,uci,def_period,trend_axis) %>%
   rename(code=geography)
 
