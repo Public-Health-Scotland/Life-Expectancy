@@ -64,7 +64,7 @@ rm(le0_data)
 ## Figures orginally supplied by population & migration team at NRS but in future may be available online.
 ##########################################################################################. 
 
-NRS_data <- read_csv(paste0(source_network,"NRS LE data with CI 2001 to 2017.csv")) %>%
+NRS_data <- read_csv(paste0(source_network,"NRS LE data with CI 2001 to 2018.csv")) %>%
   arrange(code, time_period, sex_grp)
 
 NRS_data <- NRS_data %>%
