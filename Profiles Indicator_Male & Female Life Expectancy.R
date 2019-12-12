@@ -47,7 +47,7 @@ le0_data<- readRDS(paste0(output_network,"4_Intermediate Zone LE (annual)/",run_
 #remove any estimates where geography has population less than 5000 or less than 40 deaths over 5 year period
 #add time period labels
 le0_iz_profiles <- le0_data %>%
-  subset(pop>=5000 & deaths>=40) %>% #Including only cases where pop >=5000 and total deaths >= 40
+  subset(pop>=5000 & deaths>=40 & is.finite(LEx)) %>% #Including only cases where pop >=5000 and total deaths >= 40 or where LEx can't be calulated (likely do to deaths>pop in some age groups eg 85+)
   mutate(def_period=time_period,
          year=as.numeric(substr(time_period,1,4))+2, # year should be mid-point - this forumla assumes 5 year time period
          trend_axis=paste0(as.character(year)," Midpoint")) %>%
@@ -127,4 +127,5 @@ profile_data_female_LE <- all_le_data %>% subset(ind_id=="20102")
 
 write_csv(profile_data_female_LE, path = paste0(shiny_network, "life_expectancy_female_shiny.csv"))
 write_rds(profile_data_female_LE, path = paste0(shiny_network, "life_expectancy_female_shiny.rds"))
+
 
