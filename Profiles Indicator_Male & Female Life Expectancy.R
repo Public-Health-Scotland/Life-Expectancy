@@ -18,20 +18,22 @@
 ## Packages/Filepaths ----
 ###############################################.
 
-library(dplyr)    #data manipulations 
-library(readr)    #reading in file
+source("1_functions for life expectancy.R") # Normal indicator functions
 
-#change depending on what version of RStudio are you using
-if (sessionInfo()$platform %in% c("x86_64-redhat-linux-gnu (64-bit)", "x86_64-pc-linux-gnu (64-bit)")) {
-  source_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/Source Data/"
-  output_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/Output Data/"
-  shiny_network <- "/PHI_conf/ScotPHO/Profiles/Data/Data to be checked/"
-  
-} else {
-  source_network <- "//stats/ScotPHO/Life Expectancy/Data/Source Data/"
-  output_network <- "//stats/ScotPHO/Life Expectancy/Data/Output Data/"
-  shiny_network <- "//stats/ScotPHO/Profiles/Data/Data to be checked/"
-}
+
+
+
+# #change depending on what version of RStudio are you using
+# if (sessionInfo()$platform %in% c("x86_64-redhat-linux-gnu (64-bit)", "x86_64-pc-linux-gnu (64-bit)")) {
+#   source_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/Source Data/"
+#   output_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/Output Data/"
+#   shiny_network <- "/PHI_conf/ScotPHO/Profiles/Data/Data to be checked/"
+#   
+# } else {
+#   source_network <- "//stats/ScotPHO/Life Expectancy/Data/Source Data/"
+#   output_network <- "//stats/ScotPHO/Life Expectancy/Data/Output Data/"
+#   shiny_network <- "//stats/ScotPHO/Profiles/Data/Data to be checked/"
+# }
 
 
 ##########################################################################################.
@@ -39,7 +41,7 @@ if (sessionInfo()$platform %in% c("x86_64-redhat-linux-gnu (64-bit)", "x86_64-pc
 ##########################################################################################.
 
 # Set run name - this will dictate which iteration of IZ level life expectancy source data to use
-run_name="2001to2018 IZ&Locality LE(85+)_20191003"
+run_name="2001to2018 IZ&Locality LE(85+)_20200309"
 
 le0_data<- readRDS(paste0(output_network,"4_Intermediate Zone LE (annual)/",run_name,"_life expectancy at birth.rds"))
 
