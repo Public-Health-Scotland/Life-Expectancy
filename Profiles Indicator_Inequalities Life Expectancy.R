@@ -3,13 +3,8 @@
 # Profiles Indicators- Male & Female Life expectancy Inequalities
 
 
-
-
 #source data from NRS - scotland (3 year agg), ca  ( 5 year agg)
 #scotland or hb quintiles
-
-
-
 
 
 

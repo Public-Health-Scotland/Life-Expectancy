@@ -15,30 +15,11 @@
 
 
 
-
-
 ###############################################.
 ## Packages and filepaths ----
 ###############################################.
-library(odbc)     #connections to SMRA
-library(dplyr)    #data manipulations 
-library(readr)    #for opening csv
-library(foreign)  #read spss files in lookups folder
-library(tidyr)    #for spread function to rearrange coloumn to variable (SHeS)
-library(RcppRoll) #for rolling sums
 
-server_desktop <- "server" #change depending on what version of RStudio are you using
-
-if (server_desktop == "server") {
-  cl_out_pop <- "/conf/linkage/output/lookups/Unicode/Populations/Estimates/"
-  source_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/Source Data/"
-  output_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/Output Data/"
-
-} else if (server_desktop == "desktop") {
-  cl_out_pop <- "//stats/linkage/output/lookups/Unicode/Populations/Estimates/"
-  source_network <- "//stats/ScotPHO/Life Expectancy/Data/raw data/"
-  output_network <- "//stats/ScotPHO/Life Expectancy/Data/Output Data/"
-}
+source("1_functions for life expectancy.R")
 
 
 ####################################################################################
@@ -49,9 +30,8 @@ if (server_desktop == "server") {
 shes_data <- read_csv(paste0(source_network,"Self Assessed Health Data/SHeS/","2018/AH2018-005 - Figures for healthy life expectancy stats (2017).csv")) %>% 
   setNames(tolower(names(.))) %>% #variables to lower case
   rename(sah=genhelf, year=syear, sex_grp=sex) %>%
-  subset(age<=14) %>%   # SHeS data only used for those up to age of 14
-  mutate(age_grp = case_when( 
-    age == 0 ~ 1,  age >= 1 & age <=4 ~ 2,  age >= 5 & age <=9 ~ 3,  age >= 10 & age <=14 ~ 4,age >= 15 ~ 20))
+  subset(age<=14) %>%    # SHeS data only used for those up to age of 14
+  create_agegroups_90()
 
 ## sum count of respondents based on unweighted pop - this is used in calculation of HLE Standard error
 shes_unweighted <- shes_data %>%
@@ -83,12 +63,7 @@ shos_data <- read_csv(paste0(source_network,"Self Assessed Health Data/SHoS/","2
   rename (sah=health, sex_grp=gender) %>%
   subset(sah>=1 & sah<=5) %>% #filter out any sah=6 which are 'don't know' responses
   subset(age>=16) %>%   # SHoS data only available for >=16 years - use the 16-19 year SHoS data to represent 15-19 yrs age group.
-  mutate(age_grp = case_when( 
-    age >= 0 & age <=14 ~ 99, age >= 15 & age <=19 ~ 5, age >= 20 & age <=24 ~ 6, age >= 25 & age <=29 ~ 7, age >= 30 & age <=34 ~ 8,
-    age >= 35 & age <=39 ~ 9, age >= 40 & age <=44 ~ 10, age >= 45 & age <=49 ~ 11, age >= 50 & age <=54 ~ 12,
-    age >= 55 & age <=59 ~ 13,age >= 60 & age <=64 ~ 14,age >= 65 & age <=69 ~ 15,age >= 70 & age <=74 ~ 16,
-    age >= 75 & age <=79 ~ 17,age >= 80 & age <=84 ~ 18,age >= 85 & age <=89 ~ 19,age >= 90 ~ 20))
-
+  create_agegroups_90()
 
 ## sum count of respondents based on unweighted pop - this is used in calculation of HLE Standard error
 shos_unweighted <- shos_data %>%
@@ -139,12 +114,7 @@ data_deaths <- tbl_df(dbGetQuery(channel, statement=
 
 # Format and add age bands (<1 years, 1-4 years, then 5 year age bands)
 data_deaths <- data_deaths %>% 
-  mutate(age_grp = case_when( 
-    age == 0 ~ 1,  age >= 1 & age <=4 ~ 2,  age >= 5 & age <=9 ~ 3,  age >= 10 & age <=14 ~ 4,  
-    age >= 15 & age <=19 ~ 5, age >= 20 & age <=24 ~ 6, age >= 25 & age <=29 ~ 7, age >= 30 & age <=34 ~ 8,
-    age >= 35 & age <=39 ~ 9, age >= 40 & age <=44 ~ 10, age >= 45 & age <=49 ~ 11, age >= 50 & age <=54 ~ 12,
-    age >= 55 & age <=59 ~ 13,age >= 60 & age <=64 ~ 14,age >= 65 & age <=69 ~ 15,age >= 70 & age <=74 ~ 16,
-    age >= 75 & age <=79 ~ 17,age >= 80 & age <=84 ~ 18,age >= 85 & age <=89 ~ 19,age >= 90 ~ 20)) %>%
+  create_agegroups_90() %>%
   mutate(sex_grp=recode(data_deaths$sex_grp,"9"="1")) %>% #reassign any deaths with unknown gender to males - as NRS do 
   group_by(year, sex_grp,age_grp) %>%
   summarise(deaths=n()) %>%
@@ -158,20 +128,13 @@ xtabs(data_deaths$deaths ~ data_deaths$sex_grp + data_deaths$year)
 ## Population Data ----
 ####################################################################################
 
-#Using health board population for Scotland population
-data_pop <- read.spss(paste0(cl_out_pop, "HB2014_pop_est_1981_2017.sav"),
-                      to.data.frame=TRUE, use.value.labels=FALSE) %>%
-  setNames(tolower(names(.))) %>%  #variables to lower case
+data_pop  <- read_rds(paste0(cl_out_pop,'HB2019_pop_est_1981_2018.rds')) %>%
+  setNames(tolower(names(.))) %>% #variables to lower case
   subset(year==2017)
 
 data_pop <- data_pop %>%
   mutate(sex_grp=as.character(sex)) %>%
-  mutate(age_grp = case_when( 
-    age == 0 ~ 1,  age >= 1 & age <=4 ~ 2,  age >= 5 & age <=9 ~ 3,  age >= 10 & age <=14 ~ 4,  
-    age >= 15 & age <=19 ~ 5, age >= 20 & age <=24 ~ 6, age >= 25 & age <=29 ~ 7, age >= 30 & age <=34 ~ 8,
-    age >= 35 & age <=39 ~ 9, age >= 40 & age <=44 ~ 10, age >= 45 & age <=49 ~ 11, age >= 50 & age <=54 ~ 12,
-    age >= 55 & age <=59 ~ 13,age >= 60 & age <=64 ~ 14,age >= 65 & age <=69 ~ 15,age >= 70 & age <=74 ~ 16,
-    age >= 75 & age <=79 ~ 17,age >= 80 & age <=84 ~ 18,age >= 85 & age <=89 ~ 19,age >= 90 ~ 20)) %>%
+  create_agegroups_90() %>%
   group_by(year, sex_grp, age_grp) %>% 
   summarise(pop = sum(pop)) %>% 
   mutate(level="Scotland") %>%
@@ -179,7 +142,6 @@ data_pop <- data_pop %>%
 
 #check total population - Are populations for all years 5.4 million ish 
 xtabs(data_pop$pop~data_pop$year)
-
 
 ####################################################################################
 ## Join Pop, Deaths & SAH Data ----
@@ -197,10 +159,20 @@ all_data <- left_join(all_data, sah_data, by=c("year","sex_grp","age_grp")) %>%
 
 rm(data_deaths, data_pop, sah_data) #remove files no longer needed
 
+
+
+
+
+
+
+
+
+
+
+
 ####################################################################################
 ## HLE Calculations ----
 ####################################################################################
-
 
 # Read in raw data file including population, deaths and self-assessed health data from SHoS & SHeS.
 

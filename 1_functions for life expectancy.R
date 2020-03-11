@@ -5,11 +5,10 @@
 library(odbc)     #connections to SMRA
 library(readr)    #reading in file
 library(tidyr)    #for melt - reshaping of data
-#library(foreign)  #read spss files in lookups folder
 library(dplyr)    #data manipulations 
 library(RcppRoll) #for rolling sums
 library(readr)    #reading in file
-
+#library(foreign)  #read spss files in lookups folder (HLE script only)
 
 #change depending on what version of RStudio are you using
 if (sessionInfo()$platform %in% c("x86_64-redhat-linux-gnu (64-bit)", "x86_64-pc-linux-gnu (64-bit)")) {
