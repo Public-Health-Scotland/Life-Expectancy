@@ -56,7 +56,20 @@ create_agegroups_90 <- function(df) {
 ## LE_function ----
 ###############################################.
 
-LE_function <- function (max_agegrp, run_name, fp_deaths, fp_pop, fp_output, yearstart, yearend, time_agg) {
+# Parameters:
+
+# max_agegrp - Set to max age group used in calculating LE 85 or 90.
+# run_name - This token acts as an identifier for the output files generate,
+#              if it is not changed it will over-write files generated in a previous run 
+# fp_deaths     - filename identifying deaths data to use
+# fp_pop        - filename identifying pop data to use
+# fp_output     - Name of folder to save any output files to (for options see: \\nssstats01\ScotPHO\Life Expectancy\Data\Output Data\ ) 
+# yearstart     - first calendar year of data to use in trend     
+# yearend       - last calendar year of data to use in trend 
+# time_agg      - number of years of data for aggegrated time periods (1 = single year, 2,3,4,5 etc)
+
+
+LE_function <- function (hle=FALSE, max_agegrp, run_name, fp_deaths, fp_pop, fp_output, yearstart, yearend, time_agg) {
  
   # open population rds file 
   data_deaths <- readRDS(paste0(temp_network,fp_deaths,".rds"))
@@ -70,7 +83,14 @@ LE_function <- function (max_agegrp, run_name, fp_deaths, fp_pop, fp_output, yea
   
   all_data$deaths[is.na(all_data$deaths)] <- 0 # Converting where deaths are NA's to 0s (mostly required for IZ level)
   
-  #create label for time period calculated - uses time_agg token supplied.
+  if(hle==TRUE){
+  # open self-assessed health rds file (optional only require for HLE)
+  data_sah <- readRDS(paste0(temp_network,"data_sah.rds"))
+  
+  all_data <- left_join(all_data, data_sah, by=c("year","sex_grp","age_grp"))
+  }
+  
+    #create label for time period calculated - uses time_agg token supplied.
   if(time_agg == 1){
     all_data <- all_data %>%
       mutate(time_period=paste0(as.character(year)," single year estimate"))
@@ -148,6 +168,33 @@ LE_function <- function (max_agegrp, run_name, fp_deaths, fp_pop, fp_output, yea
     ungroup ()
   }
  
+  if(hle==TRUE){
+    # Healthy life expectancy calculations
+    lifetable_data <- lifetable_data %>%
+      group_by(sex_grp, time_period, geography) %>% 
+      mutate(p_notgood_x=not_healthy/totsah,                  # proportion of ageband with not good health
+             goodhealth_Lx=(1-p_notgood_x)*Lx,                # person years lived in good health
+             THx = rev(cumsum(rev(goodhealth_Lx))),           # total years lived as healthy from year x
+             HLEx = THx/Ix,                                   # healthy life expectancy
+             Nx= totsahunw,                                   # number in survey in age interval
+             hle_ci1= p_notgood_x*(1-p_notgood_x)/Nx,         # stage1 in calculating HLE variance
+             hle_ci2= Lx^2*hle_ci1,                           # stage2
+             hle_3=rev(cumsum(rev(hle_ci2))),                 # stage3
+             var_hle=hle_3/Ix^2,                              # variance for HLE
+             se_hle=sqrt(var_hle),                            # standard error for HLE
+             hle_lci=HLEx-(1.96*se_hle),                      # 95% lower confidence interval   
+             hle_uci=HLEx+(1.96*se_hle))                      # 95% upper confidence interval
+    
+    # Summary table for LE and HLE at birth
+    le0_data<-  lifetable_data %>% 
+      group_by(geography ,time_period, sex_grp) %>%  #generate total populations & deaths to permit testing of conditions such as total pop above a certin size
+      mutate(pop=sum(totpop), deaths=sum(totdeaths)) %>%
+      ungroup() %>%
+      subset(age_grp==1) %>% #generate table for life expectancy at birth with confidence intervals.
+      select(geography,time_period,sex_grp, pop, deaths,LEx, lci, uci,HLEx,hle_lci, hle_uci ) %>%
+      arrange(geography, sex_grp,time_period)
+    
+}else if(hle==FALSE){
   le0_data<-  lifetable_data %>% 
     group_by(geography,time_period, sex_grp) %>%
     mutate(pop=sum(totpop), deaths=sum(totdeaths)) %>%
@@ -155,6 +202,7 @@ LE_function <- function (max_agegrp, run_name, fp_deaths, fp_pop, fp_output, yea
     subset(age_grp==1) %>% #generate table for life expectancy at birth with confidence intervals.
     select(geography,time_period,sex_grp,pop,deaths, LEx, lci, uci ) %>%
     arrange(geography, sex_grp,time_period)
+}
   
   #saveRDS(lifetable_data, file=paste0(output_network,fp_output,"/",run_name,'_full life table.rds'))  
   #Save out life expectancy at birth data
