@@ -18,34 +18,8 @@
 ###############################################.
 ## Packages/Filepaths ----
 ###############################################.
-library(dplyr)
-library(odbc)     #connections to SMRA
-library(foreign)  #read spss files in lookups folder
-library(readr)    #reading in file
-library(tidyr) #for melt - reshaping of data
 
-#change depending on what version of RStudio are you using
-if (sessionInfo()$platform %in% c("x86_64-redhat-linux-gnu (64-bit)", "x86_64-pc-linux-gnu (64-bit)")) {  
-  cl_out_pop <- "/conf/linkage/output/lookups/Unicode/Populations/Estimates/"
-} else {
-  cl_out_pop <- "//stats/linkage/output/lookups/Unicode/Populations/Estimates/"
-}
-
-source("Function_Life Expectancy (85+).R") #Life expectancy function where max age band is 85+ years (deliberate choise to use 85+ not 90+ because of small geographic units & small numbers)
-
-# Function to age bands (<1 years, 1-4 years, then 5 year age bands)
-# Note agebands not the same as those used in ScotPHO profile indicator production
-create_agegroups <- function(df) {
-  df <- df %>% mutate(age_grp = case_when( 
-    age == 0 ~ 1,  age >= 1 & age <=4 ~ 2,  age >= 5 & age <=9 ~ 3,  
-    age >= 10 & age <=14 ~ 4, age >= 15 & age <=19 ~ 5, age >= 20 & age <=24 ~ 6, 
-    age >= 25 & age <=29 ~ 7, age >= 30 & age <=34 ~ 8, age >= 35 & age <=39 ~ 9, 
-    age >= 40 & age <=44 ~ 10, age >= 45 & age <=49 ~ 11, age >= 50 & age <=54 ~ 12,
-    age >= 55 & age <=59 ~ 13, age >= 60 & age <=64 ~ 14,age >= 65 & age <=69 ~ 15,
-    age >= 70 & age <=74 ~ 16, age >= 75 & age <=79 ~ 17,age >= 80 & age <=84 ~ 18, 
-    age >= 85 ~ 19
-  ))
-  }
+source("1_functions for life expectancy.R") #Life expectancy function where max age band is 85+ years (deliberate choise to use 85+ not 90+ because of small geographic units & small numbers)
 
 ###########################################################.
 ## Part 1 - Extract deaths data from NRS deaths view ----
@@ -71,7 +45,7 @@ table(data_deaths_raw$nonres, data_deaths_raw$year)
 # Format and add age bands (<1 years, 1-4 years, then 5 year age bands)
 # Recode unknown to male in line with NRS custom when calculating life expectancy
 data_deaths_raw <- data_deaths_raw %>%
-  create_agegroups() %>%
+  create_agegroups_85() %>%
   mutate(sex_grp=recode(data_deaths_raw$sex_grp,"9"="1"))
   
 # Read in geographic reference file.
@@ -84,10 +58,11 @@ data_deaths_raw <- left_join(data_deaths_raw, postcode_lookup, "pc7") %>%
 
 # Frequencies of deaths where no match to DZ/IZ by year -
 # Check earlier years don't have excessive non-matching deaths. Non matched should be the same for DZ and IZ
-table(filter(data_deaths_raw, is.na(intzone2011))$year)
+#table(filter(data_deaths_raw, is.na(intzone2011))$year)
 table(filter(data_deaths_raw, is.na(datazone2011))$year)
 
-#aggregate IZ level deaths by year, age, sex for scottish residents only 
+## Prepare IZ level deaths file 
+#  Aggregate IZ level deaths by year, age, sex for scottish residents only 
 data_deaths_iz <- data_deaths_raw %>%
   subset(!(is.na(intzone2011))) %>%  #exclude non scottish residents
   group_by(year,age_grp,sex_grp,intzone2011) %>%
@@ -95,11 +70,13 @@ data_deaths_iz <- data_deaths_raw %>%
   ungroup() %>%
   rename(geography=intzone2011)
 
-#aggregate HSCP locality level deaths by year, age, sex for scottish residents only 
-dz_locality_lookup <- readRDS("/PHI_conf/ScotPHO/Profiles/Data/Lookups/Geography/DataZone11_HSCLocality_Lookup.rds")
+## Prepare HSCP Locality deaths file
+
+# Read in dz to localities and izs lookup
+dz_geo_lookup <- readRDS("/PHI_conf/ScotPHO/Profiles/Data/Lookups/Geography/DataZone11_All_Geographies_Lookup.rds")
 
 # Join deaths data to DZ to Partnership geogrpaphy lookup.
-data_deaths_locality <- left_join(data_deaths_raw, dz_locality_lookup, by ="datazone2011") 
+data_deaths_locality <- left_join(data_deaths_raw, dz_geo_lookup, by ="datazone2011") 
 
 data_deaths_locality <- data_deaths_locality %>%
   subset(!(is.na(hscp_locality))) %>%  #exclude non scottish residents
@@ -117,7 +94,7 @@ xtabs(deaths~year+(substr(geography,1,3)), data_deaths_all)
 # Save deaths file
 saveRDS(data_deaths_all, file=paste0(temp_network,'data_deaths.rds'))
 
-rm(data_deaths_raw, data_deaths_iz,data_deaths_locality,dz_locality_lookup) #optional cleaning 
+rm(data_deaths_raw, data_deaths_iz,data_deaths_locality) #optional cleaning 
 
 ###############################################.
 ## Part 2 - Read in Scotland Populations from ISD lookup ----
@@ -138,19 +115,26 @@ data_pop2 <- readRDS(paste0(cl_out_pop,"DataZone2011_pop_est_2011_2018.rds")) %>
   mutate(sex_grp = case_when(sex=="M"~"1",sex=="F"~"2",TRUE~"other")) %>%
   select(-c(total_pop,sex, datazone2011name))
 
-data_pop <- bind_rows(data_pop1,data_pop2)
+data_pop <- bind_rows(data_pop1,data_pop2) %>%
+  select(year, datazone2011,age0:sex_grp)
+
 rm(data_pop1,data_pop2)
 
 # Reshape data to long format
-data_pop <- data_pop %>% gather(age, pop, -c(year, sex_grp, intzone2011))
+data_pop <- data_pop %>% 
+  pivot_longer(
+    cols=starts_with("age"),
+    names_to="age",
+    names_prefix = "age",
+    values_to="pop")
 
 #Converting pop & age to numeric
-data_pop$pop <- as.numeric(data_pop$pop)
-data_pop$age <- as.numeric(gsub("age|plus", "", data_pop$age))
+#data_pop$pop <- as.numeric(data_pop$pop)
+data_pop$age <- as.numeric(gsub("age|plus", "", data_pop$age)) #remove prefix/suffix found in age fields
 
 # Format and add age bands (<1 years, 1-4 years, then 5 year age bands)
 data_pop <- data_pop %>%
-  create_agegroups() %>%
+  create_agegroups_85() %>%
   group_by (year,sex_grp, age_grp, datazone2011) %>%
   summarise(pop=sum(pop)) %>%
   ungroup()
@@ -186,7 +170,6 @@ saveRDS(data_pop_all, file=paste0(temp_network,'data_pop.rds'))
 
 rm(postcode_lookup, data_pop, data_pop_iz, data_pop_locality, dz_geo_lookup) #optional cleaning
 
-
 ##########################################################################################.
 ## Part 3 - Generating Life Expectancy Estimates ----
 ##########################################################################################.
@@ -195,6 +178,7 @@ rm(postcode_lookup, data_pop, data_pop_iz, data_pop_locality, dz_geo_lookup) #op
 
 # Parameters:
 
+# max_agegrp - Set to max age group used in calculating LE 85 or 90.
 # run_name - This token acts as an identifier for the output files generate,
 #              if it is not changed it will over-write files generated in a previous run 
 # fp_deaths     - filename identifying deaths data to use
@@ -204,24 +188,17 @@ rm(postcode_lookup, data_pop, data_pop_iz, data_pop_locality, dz_geo_lookup) #op
 # yearend       - last calendar year of data to use in trend 
 # time_agg      - number of years of data for aggegrated time periods (1 = single year, 2,3,4,5 etc)
 
+LE_function(max_agegrp=85,run_name="2001to2018 IZ&Locality LE(85+)_20200309",fp_deaths="data_deaths", 
+            fp_pop="data_pop", fp_output="4_Intermediate Zone LE (annual)",
+            yearstart=2001, yearend=2018, time_agg=5)
 
-LE_85_function(run_name="2001to2018 IZ&Locality LE(85+)_20191003",fp_deaths="data_deaths", 
-               fp_pop="data_pop", fp_output="4_Intermediate Zone LE (annual)",   
-               yearstart=2001, yearend=2018, time_agg=5)
 
 # Function generates 3 output RDS files than can be used for checking or analysis
-# Select & run the "run_name" & "fp_output" tokens above & the script below will 
-# read in files you created with the function above.
-run_name="2001to2018 IZ&Locality LE(85+)_20191003"
-fp_output="4_Intermediate Zone LE (annual)"
+# Once function runs these should appear in local environment
+# all_data: all_data should be raw population and deaths data files added priort to calculations
+# final_lifetable : lifetable contains invidual age groups plus all stages of calculation
+# final_le0_data : le0 just a summary of life expectancy at birth data.
 
-raw_data <- readRDS(paste0(temp_network,run_name,"-le_raw.rds")) # raw data before le calculations
-lifetable_data <- readRDS(paste0(output_network,fp_output,"/",run_name,"_full life table.rds")) #full life table
-le0_data <- readRDS(paste0(output_network,fp_output,"/",run_name,"_life expectancy at birth.rds")) #life expectancy at birth
-
-# Optional files can be saved as csv if required - not generally required
-write_csv(le0_data, path = paste0(output_network,fp_output,"/",run_name,"_life expectancy at birth.csv"),
-         col_names = TRUE)
 
 
 ##END
