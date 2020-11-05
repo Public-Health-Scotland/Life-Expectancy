@@ -36,7 +36,7 @@ data_deaths_raw <- tbl_df(dbGetQuery(channel, statement=
  "SELECT year_of_registration year, age, sex sex_grp, POSTCODE pc7,
         CASE WHEN country_of_residence='XS'THEN 'XS'ELSE 'nonres' END as nonres 
   FROM ANALYSIS.GRO_DEATHS_C 
-  WHERE year_of_registration between 2001 AND 2018")) %>%
+  WHERE year_of_registration between 2001 AND 2019")) %>%
   setNames(tolower(names(.)))  #variables to lower case
 
 # Check of numbers of non-residents - can compare to NRS published estimates.
@@ -49,7 +49,7 @@ data_deaths_raw <- data_deaths_raw %>%
   mutate(sex_grp=recode(data_deaths_raw$sex_grp,"9"="1"))
   
 # Read in geographic reference file.
-postcode_lookup <- read_rds('/conf/linkage/output/lookups/Unicode/Geography/Scottish Postcode Directory/Scottish_Postcode_Directory_2019_2.rds') %>%
+postcode_lookup <- read_rds('/conf/linkage/output/lookups/Unicode/Geography/Scottish Postcode Directory/Scottish_Postcode_Directory_2020_2.rds') %>%
   setNames(tolower(names(.)))  #variables to lower case
 
 # Join geogrpaphy lookup and deaths data.
@@ -57,8 +57,9 @@ data_deaths_raw <- left_join(data_deaths_raw, postcode_lookup, "pc7") %>%
   select(year, age_grp, sex_grp, datazone2011, intzone2011) 
 
 # Frequencies of deaths where no match to DZ/IZ by year -
-# Check earlier years don't have excessive non-matching deaths. Non matched should be the same for DZ and IZ
-#table(filter(data_deaths_raw, is.na(intzone2011))$year)
+# Check earlier years don't have 'excessive' non-matching deaths (non matching deaths are excluded from calculations leading to potential inconsistencies at different geography levels).
+# Non matched should be the same for DZ and IZ
+table(filter(data_deaths_raw, is.na(intzone2011))$year)
 table(filter(data_deaths_raw, is.na(datazone2011))$year)
 
 ## Prepare IZ level deaths file 
@@ -109,7 +110,7 @@ data_pop1 <- readRDS(paste0(cl_out_pop,"DataZone2011_pop_est_2001_2010.rds"))%>%
   select(-c(total_pop,sex, datazone2011name))
 
 # Read in small area population lookup, select required data and recode to permit matching.
-data_pop2 <- readRDS(paste0(cl_out_pop,"DataZone2011_pop_est_2011_2018.rds")) %>%
+data_pop2 <- readRDS(paste0(cl_out_pop,"DataZone2011_pop_est_2011_2019.rds")) %>%
   setNames(tolower(names(.))) %>%  #variables to lower case
   subset(year>=2011) %>%
   mutate(sex_grp = case_when(sex=="M"~"1",sex=="F"~"2",TRUE~"other")) %>%
@@ -188,9 +189,9 @@ rm(postcode_lookup, data_pop, data_pop_iz, data_pop_locality, dz_geo_lookup) #op
 # yearend       - last calendar year of data to use in trend 
 # time_agg      - number of years of data for aggegrated time periods (1 = single year, 2,3,4,5 etc)
 
-LE_function(max_agegrp=85,run_name="2001to2018 IZ&Locality LE(85+)_20200309",fp_deaths="data_deaths", 
+LE_function(max_agegrp=85,run_name="2001to2019 IZ&Locality LE(85+)_20201105",fp_deaths="data_deaths", 
             fp_pop="data_pop", fp_output="4_Intermediate Zone LE (annual)",
-            yearstart=2001, yearend=2018, time_agg=5)
+            yearstart=2001, yearend=2019, time_agg=5)
 
 
 # Function generates 3 output RDS files than can be used for checking or analysis

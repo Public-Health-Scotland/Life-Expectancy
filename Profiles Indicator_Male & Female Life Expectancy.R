@@ -7,6 +7,7 @@
 # We use NRS life expectancy estimates for Scotland, NHS Board and LA level which are 3 year aggregates and use 90+ as max age band.
 
 # Using NRS LE estimates avoids confusion caused by having different LE to those that many users expect (ie the national statistic)
+# New annual NRS life expectancy figures are sourced from NRS website or by request to NRS and manually formatted then added to previous years data file.
 # Smaller geographies cannot use the exact same methodology because 3 years of data insufficient to produce robust LE estimates for small geogrpahies.
 
 
@@ -21,27 +22,12 @@
 source("1_functions for life expectancy.R") # Normal indicator functions
 
 
-
-
-# #change depending on what version of RStudio are you using
-# if (sessionInfo()$platform %in% c("x86_64-redhat-linux-gnu (64-bit)", "x86_64-pc-linux-gnu (64-bit)")) {
-#   source_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/Source Data/"
-#   output_network <- "/PHI_conf/ScotPHO/Life Expectancy/Data/Output Data/"
-#   shiny_network <- "/PHI_conf/ScotPHO/Profiles/Data/Data to be checked/"
-#   
-# } else {
-#   source_network <- "//stats/ScotPHO/Life Expectancy/Data/Source Data/"
-#   output_network <- "//stats/ScotPHO/Life Expectancy/Data/Output Data/"
-#   shiny_network <- "//stats/ScotPHO/Profiles/Data/Data to be checked/"
-# }
-
-
 ##########################################################################################.
 ## Part 1 - read in file with life expectancy figures at IZ  ----
 ##########################################################################################.
 
 # Set run name - this will dictate which iteration of IZ level life expectancy source data to use
-run_name="2001to2018 IZ&Locality LE(85+)_20200309"
+run_name="2001to2019 IZ&Locality LE(85+)_20201105"
 
 le0_data<- readRDS(paste0(output_network,"4_Intermediate Zone LE (annual)/",run_name,"_life expectancy at birth.rds"))
 
@@ -66,7 +52,7 @@ rm(le0_data)
 ## Figures orginally supplied by population & migration team at NRS but in future may be available online.
 ##########################################################################################. 
 
-NRS_data <- read_csv(paste0(source_network,"NRS LE data with CI 2001 to 2018.csv")) %>%
+NRS_data <- read_csv(paste0(source_network,"NRS LE data with CI 2001 to 2019.csv")) %>%
   arrange(code, time_period, sex_grp)
 
 NRS_data <- NRS_data %>%

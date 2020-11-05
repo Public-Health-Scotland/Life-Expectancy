@@ -1,7 +1,7 @@
 ## LE and HLE Scotland.R
 
 ## V Elliott
-## March 2030
+## March 2020
 
 ## Script can be used to generate Life Expectancy and Healthy Life Expectancy figure for males and females in Scotland.
 
