@@ -27,7 +27,7 @@ source("1_functions for life expectancy.R") # Normal indicator functions
 ##########################################################################################.
 
 # Set run name - this will dictate which iteration of IZ level life expectancy source data to use
-run_name="2001to2019 IZ&Locality LE(85+)_20201105"
+run_name="2001to2020 IZ&Locality LE(85+)_20210927"
 
 le0_data<- readRDS(paste0(output_network,"4_Intermediate Zone LE (annual)/",run_name,"_life expectancy at birth.rds"))
 
@@ -52,7 +52,7 @@ rm(le0_data)
 ## Figures orginally supplied by population & migration team at NRS but in future may be available online.
 ##########################################################################################. 
 
-NRS_data <- read_csv(paste0(source_network,"NRS LE data with CI 2001 to 2019.csv")) %>%
+NRS_data <- read_csv(paste0(source_network,"NRS LE data with CI 2001 to 2020.csv")) %>%
   arrange(code, time_period, sex_grp)
 
 NRS_data <- NRS_data %>%
@@ -87,7 +87,7 @@ NRS_ca_data <- left_join(NRS_ca_data, hscp_ca, by="code") # match on
 
 NRS_hscp_data <- NRS_ca_data %>%
   select(-code) %>%
-  rename(code=code.y) %>%
+  rename(code=code.y.y) %>%
   filter(!is.na(code))
 
 NRS_data <- bind_rows(NRS_data,NRS_hscp_data)
