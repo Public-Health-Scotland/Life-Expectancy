@@ -113,7 +113,8 @@ data_pop1 <- readRDS(paste0(cl_out_pop,"DataZone2011_pop_est_2001_2010.rds"))%>%
 data_pop2 <- readRDS(paste0(cl_out_pop,"DataZone2011_pop_est_2011_2020.rds")) %>%
   setNames(tolower(names(.))) %>%  #variables to lower case
   subset(year>=2011) %>%
-  mutate(sex_grp = case_when(sex=="M"~"1",sex=="F"~"2",TRUE~"other")) %>%
+  mutate(sex = case_when(sex=="m"~"M", sex=="f"~"F", TRUE~as.character(sex)),
+         sex_grp = case_when(sex=="M"~"1",sex=="F"~"2",TRUE~"other")) %>%
   select(-c(total_pop,sex, datazone2011name))
 
 data_pop <- bind_rows(data_pop1,data_pop2) %>%

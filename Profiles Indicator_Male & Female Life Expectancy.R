@@ -99,7 +99,8 @@ NRS_data <- bind_rows(NRS_data,NRS_hscp_data)
 all_le_data<- bind_rows(le0_iz_profiles, NRS_data) %>%
   mutate(ind_id= case_when(sex_grp=="1" ~ "20101", #male indicator number
                            sex_grp=="2" ~ "20102", #female indicator number
-                           TRUE ~"x")) %>%
+                           TRUE ~"x"),
+         code = case_when(code=="S92000003"~"S00000001", TRUE~as.character(code))) %>%
   arrange(ind_id, year, code) %>% 
   mutate(numerator="") %>% #insert column where numerator would ordinarily be - there is no numerator for LE
   select(code, ind_id, year, numerator, rate=LEx,lowci=lci,upci=uci, def_period, trend_axis)
