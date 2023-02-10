@@ -27,7 +27,7 @@ source("1_functions for life expectancy.R") # Normal indicator functions
 ##########################################################################################.
 
 # Set run name - this will dictate which iteration of IZ level life expectancy source data to use
-run_name="2001to2020 IZ&Locality LE(85+)_20210927"
+run_name="2001to2021 IZ&Locality LE(85+)_20210927"
 
 le0_data<- readRDS(paste0(output_network,"4_Intermediate Zone LE (annual)/",run_name,"_life expectancy at birth.rds"))
 
@@ -52,7 +52,7 @@ rm(le0_data)
 ## Figures orginally supplied by population & migration team at NRS but in future may be available online.
 ##########################################################################################. 
 
-NRS_data <- read_csv(paste0(source_network,"NRS LE data with CI 2001 to 2020.csv")) %>%
+NRS_data <- read_csv(paste0(source_network,"NRS LE data with CI 2001 to 2021.csv")) %>%
   arrange(code, time_period, sex_grp)
 
 NRS_data <- NRS_data %>%
@@ -78,7 +78,9 @@ lookup_ca <- readRDS("/PHI_conf/ScotPHO/Profiles/Data/Lookups/Geography/CAdictio
 #create lookup that matches HSCP code to CA code (note stirling and clacks have no match and will be dropped)
 hscp_ca <- merge(lookup_ca,lookup_hscp, by="areaname", all.x = TRUE) %>%
  rename(code=code.x) %>%
-  select(-areaname)
+  select(-areaname) %>% 
+  tibble::add_row(code = c("S12000015", "S12000024", "S12000046", "S12000044"), 
+                  code.y = c("S37000032", "S37000033", "S37000034", "S37000035"))   # Adds old CA code for Fife, Perth, Glasgow and North Lanarkshire
 
 NRS_ca_data <- NRS_data %>%  #select only council data from NRS file
   subset(substr(NRS_data$code, 1, 3) =="S12") 
@@ -108,13 +110,13 @@ all_le_data<- bind_rows(le0_iz_profiles, NRS_data) %>%
 ## Male life expectancy file
 profile_data_male_LE <- all_le_data %>% subset(ind_id=="20101") 
 
-write_csv(profile_data_male_LE, path = paste0(shiny_network, "life_expectancy_male_shiny.csv"))
-write_rds(profile_data_male_LE, path = paste0(shiny_network, "life_expectancy_male_shiny.rds"))
+write_csv(profile_data_male_LE, file = paste0(shiny_network, "life_expectancy_male_shiny.csv"))
+write_rds(profile_data_male_LE, file = paste0(shiny_network, "life_expectancy_male_shiny.rds"))
 
 ## Female life expectancy file
 profile_data_female_LE <- all_le_data %>% subset(ind_id=="20102") 
 
-write_csv(profile_data_female_LE, path = paste0(shiny_network, "life_expectancy_female_shiny.csv"))
-write_rds(profile_data_female_LE, path = paste0(shiny_network, "life_expectancy_female_shiny.rds"))
+write_csv(profile_data_female_LE, file = paste0(shiny_network, "life_expectancy_female_shiny.csv"))
+write_rds(profile_data_female_LE, file = paste0(shiny_network, "life_expectancy_female_shiny.rds"))
 
 
